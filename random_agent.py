@@ -1,5 +1,6 @@
 import os
 import sys
+import traci
 import numpy as np
 from sumo_rl import SumoEnvironment
 
@@ -22,7 +23,7 @@ env = SumoEnvironment(
     route_file="sumo_rl/nets/single-intersection/single-intersection.rou.xml",
     out_csv_name=out_csv_name,
     use_gui=True,
-    num_seconds=5400,
+    num_seconds=800,
     yellow_time=4,
     min_green=5,
     max_green=60,
@@ -31,6 +32,18 @@ env = SumoEnvironment(
 
 # Run simulation
 obs = env.reset()
+
+# Access traci via env.sumo
+if env.sumo is not None:
+    try:
+        view_id = traci.gui.getIDList()[0]
+        traci.gui.setZoom(view_id, 300)
+        traci.gui.setDelay(view_id, 50)      
+        traci.gui.setOffset(view_id, 0, 0)
+    except Exception as e:
+        print(f"Error adjusting GUI view: {e}")
+
+
 print(f"Expected CSV path: {env.out_csv_name}_ep_0.csv")
 print(f"Vehicles in simulation: {env.vehicles}")
 

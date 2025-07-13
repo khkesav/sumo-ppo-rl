@@ -1,5 +1,6 @@
 import os
 import sys
+import traci
 import pandas as pd
 from stable_baselines3 import PPO
 from sumo_rl import SumoEnvironment
@@ -15,8 +16,8 @@ else:
 out_csv_dir = "outputs/single-intersection"
 os.makedirs(out_csv_dir, exist_ok=True)
 
-os.makedirs("outputs/single-intersection/train-ppo", exist_ok=True)
-out_csv_name = "outputs/single-intersection/train-ppo/ppo"
+os.makedirs("outputs/single-intersection", exist_ok=True)
+out_csv_name = "outputs/single-intersection/ppo"
 
 # Create SUMO environment
 env = SumoEnvironment(
@@ -24,28 +25,38 @@ env = SumoEnvironment(
     route_file="sumo_rl/nets/single-intersection/single-intersection.rou.xml",
     out_csv_name=out_csv_name,
     use_gui=True,
-    num_seconds=400,
+    num_seconds=800,
     yellow_time=4,
     min_green=5,
     max_green=60,
     single_agent=True
 )
 
-# Create PPO model
-model = PPO(
-    policy="MlpPolicy",
-    env=env,
-    learning_rate=2.5e-4,
-    verbose=1,
-)
+# Load the trained model
+model = PPO.load("ppo_single_intersection.zip")
 
-# Train PPO agent
-model.learn(total_timesteps=50_000)
-model.save("ppo_single_intersection")
+# Run simulation using the trained policy
+obs, _ = env.reset()
+
+# Adjust GUI settings
+if env.sumo is not None:
+    try:
+        view_id = traci.gui.getIDList()[0]
+        traci.gui.setZoom(view_id, 300)      
+        traci.gui.setDelay(view_id, 50)      
+        traci.gui.setOffset(view_id, 0, 0)   
+    except Exception as e:
+        print(f"Error adjusting GUI view: {e}")
+
+done = False
+
+while not done:
+    action, _ = model.predict(obs, deterministic=True)
+    obs, reward, terminated, truncated, info = env.step(action)
+    done = terminated or truncated
 
 # Save final CSV output
 env.save_csv(out_csv_name, 0)
 env.close()
 
-print("PPO Training Complete. Model saved as 'ppo_single_intersection'.")
-print(f"Output CSV saved to: {out_csv_name}_ep_0.csv")
+print("Evaluation complete using trained PPO model.")
