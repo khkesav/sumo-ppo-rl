@@ -1,6 +1,7 @@
 import os
 import sys
 import traci
+import time
 import pandas as pd
 from stable_baselines3 import PPO
 from sumo_rl import SumoEnvironment
@@ -25,7 +26,7 @@ env = SumoEnvironment(
     route_file="sumo_rl/nets/single-intersection/single-intersection.rou.xml",
     out_csv_name=out_csv_name,
     use_gui=True,
-    num_seconds=800,
+    num_seconds=2000,
     yellow_time=4,
     min_green=5,
     max_green=60,
@@ -42,9 +43,12 @@ obs, _ = env.reset()
 if env.sumo is not None:
     try:
         view_id = traci.gui.getIDList()[0]
-        traci.gui.setZoom(view_id, 300)      
-        traci.gui.setDelay(view_id, 50)      
-        traci.gui.setOffset(view_id, 0, 0)   
+        traci.gui.setZoom(view_id, 600)
+        
+        net = traci.simulation.getNetBoundary()
+        center_x = (net[0] + net[2]) / 2
+        center_y = (net[1] + net[3]) / 2
+        traci.gui.setOffset(view_id, center_x, center_y)
     except Exception as e:
         print(f"Error adjusting GUI view: {e}")
 
@@ -53,6 +57,7 @@ done = False
 while not done:
     action, _ = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, info = env.step(action)
+    time.sleep(0.08)  # Delay here
     done = terminated or truncated
 
 # Save final CSV output
